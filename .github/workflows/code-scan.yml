@@ -1,0 +1,96 @@
+name: Code Scan
+
+on:
+  pull_request: { }
+  workflow_dispatch: { }
+  push:
+    branches: [ "master", "main" ]
+  schedule:
+    - cron: '0 21 */7 * *' # Sets Semgrep to scan at 21:00, every 7 days.
+
+jobs:
+  trufflehog:
+    name: Trufflehog Secret Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: trufflesecurity/trufflehog@main
+        with:
+          extra_args: --debug --only-verified
+
+  semgrep:
+    name: Semgrep Code Quality Scan
+    runs-on: ubuntu-latest
+    container:
+      image: semgrep/semgrep
+    if: (github.actor != 'dependabot[bot]')
+    steps:
+      - uses: actions/checkout@v4
+      - run: semgrep scan --config auto --oss-only --output=results.txt
+      - run: cat results.txt
+      - uses: actions/github-script@v7
+        if: github.event_name == 'pull_request'
+        with:
+          script: |
+            let results = '';
+            await exec.exec('cat', ['results.txt'], {
+              listeners: {
+                stdout: (data) => {
+                  results += data.toString();
+                }
+              }
+            });
+            
+            // List previous issue comments
+            const comments = await github.rest.issues.listComments({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+            });
+            
+            // If there are any comments created by `github-actions[bot]`
+            // and have the body containing `semgrep`, we should update
+            // the comment, instead of creating a new one.
+            const previousComment = comments.data.find(comment => {
+              return comment.user.login === 'github-actions[bot]' && comment.body.includes('semgrep-github-actions-id');
+            });
+            
+            const updatedDate = new Date()
+              .toLocaleString('id-ID', {dateStyle: "long", timeStyle: "long", hour12: false, timeZone: "UTC"});
+            
+            if (previousComment) {
+              // If there are previous comment and the current result is clean, 
+              // then update the comment to a congratulation response.
+              if (!results.trim()) {
+                await github.rest.issues.updateComment({
+                  comment_id: previousComment.id,
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  body: `<!-- semgrep-github-actions-id -->\n🎉 Congratulations! No Semgrep issues found in this PR. (last updated: ${updatedDate})`,
+                });
+                return;
+              }
+
+              await github.rest.issues.updateComment({
+                comment_id: previousComment.id,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: `<!-- semgrep-github-actions-id -->\nHere are the results of the [Semgrep](https://semgrep.dev/docs/getting-started/quickstart-oss/) scan (last updated: ${updatedDate}):\n\`\`\`\n${results}\n\`\`\``,
+              });
+              return;
+            }
+            
+            // If results is empty, do nothing
+            if (!results.trim()) {
+              return;
+            }
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `<!-- semgrep-github-actions-id -->\nHere are the results of the [Semgrep](https://semgrep.dev/docs/getting-started/quickstart-oss/) scan:\n\`\`\`\n${results.trim()}\n\`\`\``,
+            });`

@@ -1,0 +1,33 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - master
+
+jobs:
+  ci:
+    name: Build
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [lts/*, current]
+    steps:
+      - name: Setup node
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install
+        run: npm ci
+
+      - name: Lint
+        run: npx biome ci .
+
+      - name: Build
+        run: npm run build

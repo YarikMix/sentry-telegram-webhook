@@ -1,0 +1,27 @@
+{
+    "name": "sentry-telegram-webhook",
+    "version": "1.0.0",
+    "description": "",
+    "author": "Reinaldy Rafli <github@reinaldyrafli.com>",
+    "private": false,
+    "license": "MIT",
+    "type": "module",
+    "scripts": {
+        "build": "tsc",
+        "start": "node ./dist/main.js",
+        "lint": "biome check .",
+        "lint:fix": "biome check --unsafe --fix"
+    },
+    "dependencies": {
+        "@hono/node-server": "^1.13.3",
+        "hono": "^4.6.8",
+        "hono-pino": "^0.4.0",
+        "pino": "^9.5.0",
+        "zod": "^3.23.8"
+    },
+    "devDependencies": {
+        "@biomejs/biome": "^1.9.4",
+        "@types/node": "^22.8.4",
+        "typescript": "^5.6.3"
+    }
+}
