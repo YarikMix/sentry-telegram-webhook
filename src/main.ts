@@ -8,6 +8,9 @@ import { ZodError } from "zod";
 import { issueAlertSchema, metricAlertSchema } from "./schemas.js";
 import { resolveProjectName } from "./sentry.js";
 import { sendMessage } from "./telegram.js";
+import dotenv from 'dotenv'
+
+dotenv.config({ path: '.env' });
 
 const logger = pino({
     level: process.env.LOG_LEVEL ?? "info",
