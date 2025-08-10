@@ -113,11 +113,11 @@ app.post("/sentry/webhook", pinoLogger({ pino: logger }), async (c) => {
 
             message +=
                 "\n<b>Date:</b> " +
-                validatedRequestBody.data.event.timestamp.toLocaleString("en-US", {
+                validatedRequestBody.data.event.timestamp.toLocaleString("ru-RU", {
                     dateStyle: "long",
                     timeStyle: "long",
                     hour12: false,
-                    timeZone: "Asia/Jakarta",
+                    timeZone: "Europe/Moscow",
                 });
 
             message += "\n<b>Detail:</b> " + validatedRequestBody.data.event.web_url;
@@ -137,7 +137,7 @@ app.post("/sentry/webhook", pinoLogger({ pino: logger }), async (c) => {
             const validatedRequestBody = metricAlertSchema.parse(requestBody);
             let message = `<b>${validatedRequestBody.data.description_title} (${validatedRequestBody.data.description_text})</b>\n`;
             message += `\nProject: ${validatedRequestBody.data.metric_alert.projects?.join(", ") ?? "Unknown"}`;
-            message += `\n<b>Date:</b> ${validatedRequestBody.data.metric_alert.date_detected?.toLocaleString("en-US", { dateStyle: "long", timeStyle: "long", hour12: false, timeZone: "Asia/Jakarta" }) ?? "no data"}`;
+            message += `\n<b>Date:</b> ${validatedRequestBody.data.metric_alert.date_detected?.toLocaleString("ru-RU", { dateStyle: "long", timeStyle: "long", hour12: false, timeZone: "Europe/Moscow" }) ?? "no data"}`;
             message += "\n<b>Detail:</b> " + validatedRequestBody.data.web_url;
 
             sendMessage(configuration.telegramBotToken, {
