@@ -1,6 +1,7 @@
 import { createHmac } from "node:crypto";
 import * as process from "node:process";
 import { serve } from "@hono/node-server";
+import dotenv from "dotenv";
 import { Hono } from "hono";
 import { pinoLogger } from "hono-pino";
 import { pino } from "pino";
@@ -8,9 +9,8 @@ import { ZodError } from "zod";
 import { issueAlertSchema, metricAlertSchema } from "./schemas.js";
 import { resolveProjectName } from "./sentry.js";
 import { sendMessage } from "./telegram.js";
-import dotenv from 'dotenv'
 
-dotenv.config({ path: '.env' });
+dotenv.config({ path: ".env" });
 
 const logger = pino({
     level: process.env.LOG_LEVEL ?? "info",
