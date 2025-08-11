@@ -1,32 +1,21 @@
-import { createHmac } from "node:crypto";
 import * as process from "node:process";
 import { serve } from "@hono/node-server";
-import dotenv from "dotenv";
 import { Hono } from "hono";
 import { pinoLogger } from "hono-pino";
 import { pino } from "pino";
 import { ZodError } from "zod";
 import { issueAlertSchema, metricAlertSchema } from "./schemas.js";
-import { resolveProjectName } from "./sentry.js";
 import { sendMessage } from "./telegram.js";
-
-dotenv.config({ path: ".env" });
 
 const logger = pino({
     level: process.env.LOG_LEVEL ?? "info",
 });
 
 const configuration = {
-    shouldValidateSignature: process.env.SHOULD_VALIDATE_SIGNATURE === "true",
-    webhookSecret: process.env.WEBHOOK_SECRET ?? "",
     telegramBotToken: process.env.TELEGRAM_BOT_TOKEN ?? "",
     telegramGroupId: Number.parseInt(process.env.TELEGRAM_GROUP_ID ?? ""),
     telegramTopicId: process.env.TELEGRAM_TOPIC_ID ? Number.parseInt(process.env.TELEGRAM_TOPIC_ID) : undefined,
-    protectMessageContent: process.env.PROTECT_MESSAGE_CONTENT === "true",
     logger,
-    sentryUrl: process.env.SENTRY_URL,
-    sentryOrganizationSlug: process.env.SENTRY_ORGANIZATION_SLUG,
-    sentryIntegrationToken: process.env.SENTRY_INTEGRATION_TOKEN,
 };
 
 const app = new Hono();
@@ -59,49 +48,14 @@ app.get("/", (c) => {
 });
 
 app.post("/sentry/webhook", pinoLogger({ pino: logger }), async (c) => {
-    if (configuration.shouldValidateSignature) {
-        if (configuration.webhookSecret === "") {
-            c.get("logger").warn("webhookSecret is empty, signature validation is disabled");
-        } else {
-            const rawRequestBody = await c.req.raw.clone().text();
-            const sentryHookSignature = c.req.header("sentry-hook-signature");
-
-            if (sentryHookSignature === undefined) {
-                c.get("logger").warn("sentry-hook-signature header is missing");
-                return c.json({ message: "sentry-hook-signature header is missing" }, 400);
-            }
-
-            const hmac = createHmac("sha256", configuration.webhookSecret);
-            hmac.update(rawRequestBody, "utf8");
-            const digest = hmac.digest("hex");
-            const signatureValidated = digest === sentryHookSignature;
-
-            if (!signatureValidated) {
-                c.get("logger").warn("signature is invalid");
-                return c.json({ message: "signature is invalid" }, 400);
-            }
-        }
-    }
     const requestBody = await c.req.json();
     const sentryHookResource = c.req.header("sentry-hook-resource");
-    const _requestId = c.req.header("request-id");
 
     switch (sentryHookResource) {
         case "event_alert": {
             const validatedRequestBody = issueAlertSchema.parse(requestBody);
             let message =
                 "<b>" + validatedRequestBody.data.event.title + " (" + validatedRequestBody.data.event.type + ")</b>\n";
-
-            const resolvedProject = await resolveProjectName(
-                validatedRequestBody.data.event.project,
-                configuration,
-                c.req.raw.signal,
-            );
-            if (resolvedProject !== null) {
-                message += `\n${resolvedProject.name}-${validatedRequestBody.data.event.project} (${resolvedProject.platform})`;
-            } else {
-                message += `\n${validatedRequestBody.data.event.project} (${validatedRequestBody.data.event.platform})`;
-            }
 
             const environment: string | undefined = validatedRequestBody.data.event.tags
                 ?.find((tag) => tag.at(0) === "environment")
