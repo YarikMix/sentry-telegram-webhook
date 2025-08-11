@@ -48,7 +48,6 @@ app.get("/", (c) => {
 });
 
 app.post("/sentry/webhook", pinoLogger({ pino: logger }), async (c) => {
-    console.log("configuration", configuration)
     const requestBody = await c.req.json();
     const sentryHookResource = c.req.header("sentry-hook-resource");
 
